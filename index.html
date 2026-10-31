@@ -146,10 +146,16 @@
 
   // ---------- Karte (OpenStreetMap / CARTO, Google-Maps-Optik) ----------
   const map = L.map("map", { zoomControl: true, attributionControl: true }).setView([51.45, 7.01], 13);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-    maxZoom: 19, subdomains: "abcd",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+  const street = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, attribution: "Karte &copy; Esri, HERE, Garmin, &copy; OpenStreetMap"
   }).addTo(map);
+  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, attribution: "Luftbild &copy; Esri, Maxar, Earthstar Geographics"
+  });
+  const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  });
+  L.control.layers({ "Karte": street, "Satellit": sat, "OpenStreetMap": osm }, null, { position: "topright" }).addTo(map);
   const track = L.polyline([], { color: "#e0660f", weight: 5, opacity: .9 }).addTo(map);
   const meIcon = L.divIcon({ className: "", html: '<div class="me"></div>', iconSize: [18,18], iconAnchor: [9,9] });
   let me = null, startMk = null, follow = true, fitted = false;
@@ -177,8 +183,18 @@
     return s.split(";").map(x => x.split(",").map(Number)).filter(a => a.length === 2 && !isNaN(a[0]));
   }
 
+  const seen = new Set();
+  function handle(m){
+    if (m.event !== "message" || seen.has(m.id)) return;
+    seen.add(m.id);
+    lastId = m.id;
+    apply(parse(m.message));
+  }
+
   function apply(d){
     if (!d) return;
+    // verspätet erneut zugestellte ältere Datensätze nicht über den neuesten legen
+    if (d.st !== "end" && S && d.startT === runStart && d.t < S.t) { addPts(d.pts); return; }
     if (d.st === "end") {
       ended = true;
       addPts(d.pts);
@@ -277,7 +293,7 @@
       txt.split("\n").forEach(line => {
         if (!line.trim()) return;
         const m = JSON.parse(line);
-        if (m.event === "message") { apply(parse(m.message)); lastId = m.id; lastRecv = m.time; }
+        if (m.event === "message") { handle(m); lastRecv = m.time; }
       });
     } catch (e) { console.log(e); }
     render();
@@ -287,9 +303,9 @@
     const es = new EventSource(`${SERVER}/${topic}/sse?since=${lastId}`);
     es.onmessage = ev => {
       const m = JSON.parse(ev.data);
-      if (m.event !== "message") return;
-      lastId = m.id; lastRecv = Date.now()/1000;
-      apply(parse(m.message));
+      if (m.event !== "message" || seen.has(m.id)) return;
+      lastRecv = Date.now()/1000;
+      handle(m);
     };
     es.onerror = () => { es.close(); setTimeout(connect, 5000); };
   }
