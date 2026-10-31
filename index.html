@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yardbell Live</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --bg:#0e0e0f; --card:#18181a; --line:#2a2a2d; --txt:#f2f2f2; --mut:#9a9a9a;
+    --org:#e0660f; --blue:#8cb8e8; --green:#70d49a; --red:#e5484d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
+  .num{font-variant-numeric:tabular-nums;font-family:"SF Mono",ui-monospace,Menlo,monospace}
+
+  /* Code-Eingabe */
+  #gate{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;gap:18px}
+  #gate h1{font-size:30px;letter-spacing:.18em;font-weight:800}
+  #gate p{color:var(--mut);max-width:320px;line-height:1.45}
+  #gate input{font-size:28px;letter-spacing:.3em;text-transform:uppercase;text-align:center;width:260px;
+    padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--txt)}
+  #gate button{font-size:17px;font-weight:700;padding:14px 34px;border-radius:14px;border:0;background:var(--org);color:#fff}
+  .inf{width:96px;height:auto}
+
+  /* Live-Ansicht */
+  #app{display:none;height:100%;flex-direction:column}
+  header{display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
+  header .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.16em;font-size:15px}
+  .pill{font-size:12px;font-weight:800;letter-spacing:.12em;padding:6px 12px;border-radius:99px;background:var(--line);color:var(--mut)}
+  .pill.run{background:rgba(224,102,15,.18);color:var(--org)}
+  .pill.pause{background:rgba(140,184,232,.18);color:var(--blue)}
+  .pill.fin{background:rgba(112,212,154,.18);color:var(--green)}
+  .pill.run::before,.pill.pause::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:currentColor;margin-right:7px;vertical-align:1px;animation:blink 1.4s infinite}
+  @keyframes blink{50%{opacity:.25}}
+
+  main{flex:1;display:flex;flex-direction:column;min-height:0}
+  #map{flex:1;min-height:260px;background:#ddd}
+  .panel{padding:14px 16px calc(14px + env(safe-area-inset-bottom));display:grid;gap:12px}
+  .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+  .lbl{font-size:11px;letter-spacing:.14em;color:var(--mut);font-weight:700;text-transform:uppercase}
+  #cd{font-size:56px;line-height:1;font-weight:700;color:var(--org)}
+  #cd.pause{color:var(--blue)} #cd.fin{color:var(--green)}
+  .right{text-align:right}
+  #el{font-size:30px;font-weight:700}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+  .tile .v{font-size:22px;font-weight:700;margin-top:4px}
+  .tile .v small{font-size:12px;color:var(--mut);font-weight:600;margin-left:2px}
+  #warn{display:none;background:rgba(229,72,77,.12);border:1px solid rgba(229,72,77,.4);color:#ffb3b5;
+    border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4}
+  details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+  summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--mut);letter-spacing:.06em}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+  td{padding:6px 0;border-top:1px solid var(--line)}
+  td:last-child{text-align:right}
+  .foot{display:flex;justify-content:space-between;font-size:12px;color:var(--mut)}
+  .foot a{color:var(--mut)}
+  .me{width:18px;height:18px;border-radius:50%;background:var(--org);border:3px solid #fff;box-shadow:0 0 0 6px rgba(224,102,15,.3)}
+
+  @media (min-width:900px){
+    main{flex-direction:row}
+    .panel{width:400px;overflow:auto;border-left:1px solid var(--line);align-content:start}
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="inf" viewBox="0 0 120 60"><path d="M30 10c-11 0-20 9-20 20s9 20 20 20c17 0 43-40 60-40 11 0 20 9 20 20s-9 20-20 20c-17 0-43-40-60-40z"
+    fill="none" stroke="#e0660f" stroke-width="7" stroke-linecap="round"/></symbol>
+</svg>
+
+<section id="gate">
+  <svg class="inf"><use href="#inf"/></svg>
+  <h1>YARDBELL LIVE</h1>
+  <p>Gib den Live-Code ein, den dir der Läufer geschickt hat. Er steht auf seiner Uhr unter „LIVE“.</p>
+  <input id="codeIn" maxlength="6" placeholder="ABC123" autocomplete="off" autocapitalize="characters">
+  <button id="go">Live folgen</button>
+</section>
+
+<div id="app">
+  <header>
+    <div class="brand"><svg width="34" height="17"><use href="#inf"/></svg>YARDBELL</div>
+    <span id="pill" class="pill">VERBINDE …</span>
+  </header>
+  <main>
+    <div id="map"></div>
+    <div class="panel">
+      <div id="warn"></div>
+      <div class="hero">
+        <div>
+          <div class="lbl" id="cdLbl">Nächste Glocke in</div>
+          <div id="cd" class="num">--:--</div>
+        </div>
+        <div class="right">
+          <div class="lbl" id="elLbl">Laufzeit Runde</div>
+          <div id="el" class="num">--:--</div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="tile"><div class="lbl">Runde</div><div class="v num" id="lap">–</div></div>
+        <div class="tile"><div class="lbl">Runden-km</div><div class="v num" id="lkm">–</div></div>
+        <div class="tile"><div class="lbl">Gesamt-km</div><div class="v num" id="tkm">–</div></div>
+        <div class="tile"><div class="lbl">Ø Pace</div><div class="v num" id="pace">–</div></div>
+        <div class="tile"><div class="lbl">Rundenziel</div><div class="v num" id="goal">–</div></div>
+        <div class="tile"><div class="lbl">Gesamtzeit</div><div class="v num" id="tot">–</div></div>
+      </div>
+      <details id="lapsBox"><summary>RUNDENZEITEN</summary><table id="laps"></table></details>
+      <div class="foot"><span id="upd">Warte auf Daten …</span><a href="#" id="change">Code ändern</a></div>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  const SERVER = "https://ntfy.sh";
+  const PREFIX = "yardbell-live-";
+  const $ = id => document.getElementById(id);
+
+  // ---------- Code aus Link (#ABC123 oder ?c=ABC123) ----------
+  function readCode(){
+    const q = new URLSearchParams(location.search).get("c");
+    const h = location.hash.replace("#","");
+    const c = (q || h || "").toUpperCase().replace(/[^A-Z0-9]/g,"");
+    return c.length === 6 ? c : null;
+  }
+  $("go").onclick = () => {
+    const c = $("codeIn").value.toUpperCase().replace(/[^A-Z0-9]/g,"");
+    if (c.length !== 6) { $("codeIn").style.borderColor = "var(--red)"; return; }
+    location.hash = c; location.reload();
+  };
+  $("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") $("go").click(); });
+  $("change").onclick = e => { e.preventDefault(); location.hash = ""; location.search = ""; };
+
+  const code = readCode();
+  if (!code) return;
+  $("gate").style.display = "none";
+  $("app").style.display = "flex";
+  document.title = "Yardbell Live · " + code;
+  const topic = PREFIX + code;
+
+  // ---------- Karte (OpenStreetMap / CARTO, Google-Maps-Optik) ----------
+  const map = L.map("map", { zoomControl: true, attributionControl: true }).setView([51.45, 7.01], 13);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    maxZoom: 19, subdomains: "abcd",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+  }).addTo(map);
+  const track = L.polyline([], { color: "#e0660f", weight: 5, opacity: .9 }).addTo(map);
+  const meIcon = L.divIcon({ className: "", html: '<div class="me"></div>', iconSize: [18,18], iconAnchor: [9,9] });
+  let me = null, startMk = null, follow = true, fitted = false;
+  map.on("dragstart", () => follow = false);
+
+  // ---------- Zustand ----------
+  let S = null;            // letzter Datensatz
+  let runStart = null;     // startT des aktuellen Laufs
+  let ended = false;
+  let lastRecv = 0;
+  let lastId = "all";
+
+  function parse(msg){
+    const p = msg.split("|");
+    if (p[0] !== "v1") return null;
+    if (p[1] === "end") return { st: "end", t: +p[2], pts: ptsOf(p[3]) };
+    return {
+      st: p[1], t: +p[2], startT: +p[3], iv: +p[4], lap: +p[5], max: +p[6],
+      lapM: +p[7], curM: +p[8], totM: +p[9], el: +p[10], pace: +p[11], race: p[12] === "1",
+      dur: p[13] ? p[13].split(",").map(Number) : [], pts: ptsOf(p[14])
+    };
+  }
+  function ptsOf(s){
+    if (!s) return [];
+    return s.split(";").map(x => x.split(",").map(Number)).filter(a => a.length === 2 && !isNaN(a[0]));
+  }
+
+  function apply(d){
+    if (!d) return;
+    if (d.st === "end") {
+      ended = true;
+      addPts(d.pts);
+    } else {
+      if (runStart !== d.startT) {           // neuer Lauf → Strecke neu
+        runStart = d.startT; ended = false;
+        track.setLatLngs([]); fitted = false;
+        if (startMk) { map.removeLayer(startMk); startMk = null; }
+      }
+      ended = false;
+      S = d;
+      addPts(d.pts);
+    }
+    render();
+  }
+
+  function addPts(pts){
+    if (!pts || !pts.length) return;
+    pts.forEach(p => track.addLatLng(p));
+    const all = track.getLatLngs();
+    const last = all[all.length - 1];
+    if (!startMk) startMk = L.circleMarker(all[0], { radius: 6, color: "#fff", weight: 3, fillColor: "#262626", fillOpacity: 1 }).addTo(map).bindTooltip("Start");
+    if (!me) me = L.marker(last, { icon: meIcon, zIndexOffset: 1000 }).addTo(map);
+    me.setLatLng(last);
+    if (!fitted && all.length > 1) { map.fitBounds(track.getBounds(), { padding: [30,30], maxZoom: 16 }); fitted = true; }
+    else if (follow) map.panTo(last);
+  }
+
+  // ---------- Anzeige ----------
+  const two = n => String(Math.floor(n)).padStart(2,"0");
+  function fmt(s){
+    s = Math.max(0, Math.round(s));
+    const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+    return h > 0 ? h + ":" + two(m) + ":" + two(x) : two(m) + ":" + two(x);
+  }
+  const km = m => (m/1000).toFixed(2).replace(".",",");
+  const pace = s => s > 0 ? Math.floor(s/60) + ":" + two(s%60) + "<small>/km</small>" : "–";
+
+  function render(){
+    const now = Date.now()/1000;
+    const pill = $("pill"), cd = $("cd");
+    if (!S) { pill.textContent = "WARTET AUF START"; return; }
+
+    const lag = now - S.t;                    // Sekunden seit Datensatz
+    let st = ended ? "end" : S.st;
+    let label = "", cls = "", cdVal = 0, cdLbl = "Nächste Glocke in", el = S.el, elLbl = "Laufzeit Runde";
+
+    if (st === "wait") {
+      label = "START GLEICH"; cdLbl = "Start in"; cdVal = S.startT - now; el = 0;
+    } else if (st === "run") {
+      label = "LIVE · LÄUFT"; cls = "run";
+      el = S.el + lag;
+      if (S.iv > 0) cdVal = S.startT + S.lap * S.iv - now;
+      else { cdLbl = "Runde läuft seit"; cdVal = el; }
+    } else if (st === "pause") {
+      label = "LIVE · PAUSE"; cls = "pause"; elLbl = "Letzte Runde";
+      cdLbl = "Pause – nächste Glocke in";
+      cdVal = S.startT + S.lap * S.iv - now;
+    } else if (st === "fin") {
+      label = "FERTIG"; cls = "fin"; cdLbl = "Geschafft"; elLbl = "Letzte Runde";
+    } else {
+      label = "BEENDET"; cdLbl = "Lauf beendet"; elLbl = "Letzte Runde";
+    }
+    pill.textContent = label; pill.className = "pill " + cls;
+    cd.className = "num " + cls;
+    $("cdLbl").textContent = cdLbl; $("elLbl").textContent = elLbl;
+    $("cd").textContent = (st === "fin" || st === "end") ? S.dur.filter(x => x > 0).length + " Runden" : fmt(cdVal);
+    $("el").textContent = fmt(el);
+    $("lap").innerHTML = S.lap + "<small>/" + S.max + "</small>";
+    $("lkm").textContent = km(S.curM);
+    $("tkm").textContent = km(S.totM);
+    $("pace").innerHTML = pace(S.pace);
+    $("goal").textContent = km(S.lapM);
+    $("tot").textContent = fmt((st === "run" || st === "pause" ? now : S.t) - S.startT);
+
+    // Rundenzeiten
+    const rows = S.dur.map((d,i) => `<tr><td>Runde ${i+1}</td><td class="num">${d > 0 ? fmt(d) : "nicht gewertet"}</td></tr>`);
+    $("laps").innerHTML = rows.length ? rows.reverse().join("") : "<tr><td>Noch keine Runde beendet</td><td></td></tr>";
+
+    // Verbindungshinweis
+    const live = st === "run" || st === "pause" || st === "wait";
+    const w = $("warn");
+    if (live && lag > 300) {
+      w.style.display = "block";
+      w.textContent = "Seit " + fmt(lag) + " keine neuen Daten. Wahrscheinlich hat das Handy des Läufers gerade kein Netz – die Uhr speichert weiter und schickt alles nach, sobald wieder Verbindung da ist.";
+    } else w.style.display = "none";
+    $("upd").textContent = lastRecv ? "Aktualisiert vor " + fmt(now - lastRecv) : "Warte auf Daten …";
+  }
+  setInterval(render, 1000);
+
+  // ---------- Daten holen: erst Verlauf, dann live ----------
+  async function history(){
+    try {
+      const r = await fetch(`${SERVER}/${topic}/json?poll=1&since=all`);
+      const txt = await r.text();
+      txt.split("\n").forEach(line => {
+        if (!line.trim()) return;
+        const m = JSON.parse(line);
+        if (m.event === "message") { apply(parse(m.message)); lastId = m.id; lastRecv = m.time; }
+      });
+    } catch (e) { console.log(e); }
+    render();
+    connect();
+  }
+  function connect(){
+    const es = new EventSource(`${SERVER}/${topic}/sse?since=${lastId}`);
+    es.onmessage = ev => {
+      const m = JSON.parse(ev.data);
+      if (m.event !== "message") return;
+      lastId = m.id; lastRecv = Date.now()/1000;
+      apply(parse(m.message));
+    };
+    es.onerror = () => { es.close(); setTimeout(connect, 5000); };
+  }
+  history();
+})();
+</script>
+</body>
+</html>
