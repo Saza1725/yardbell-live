@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Yardbell Live</title>
 <meta name="robots" content="noindex">
+<meta name="description" content="Live dabei beim Backyard Ultra Warendorf: Countdown zur nächsten Glocke, Runden, Kilometer und Karte.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Sascha läuft live · Backyard Ultra Warendorf">
+<meta property="og:description" content="Countdown zur nächsten Glocke, Runden, Kilometer und Karte – live. Start 22.11.2026 um 08:00 Uhr.">
+<meta property="og:image" content="https://saza1725.github.io/yardbell-live/og.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0e0e0f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Yardbell Live">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -30,7 +45,7 @@
   #app{display:none;height:100%;flex-direction:column}
   header{display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
   header .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.16em;font-size:15px}
-  .pill{font-size:12px;font-weight:800;letter-spacing:.12em;padding:6px 12px;border-radius:99px;background:var(--line);color:var(--mut)}
+  .pill{white-space:nowrap;font-size:12px;font-weight:800;letter-spacing:.12em;padding:6px 12px;border-radius:99px;background:var(--line);color:var(--mut)}
   .pill.run{background:rgba(224,102,15,.18);color:var(--org)}
   .pill.pause{background:rgba(140,184,232,.18);color:var(--blue)}
   .pill.fin{background:rgba(112,212,154,.18);color:var(--green)}
@@ -62,6 +77,33 @@
   .foot a{color:var(--mut)}
   .me{width:18px;height:18px;border-radius:50%;background:var(--org);border:3px solid #fff;box-shadow:0 0 0 6px rgba(224,102,15,.3)}
 
+  /* Kopf-Knöpfe */
+  .hbtn{display:flex;gap:8px;align-items:center}
+  .ib{white-space:nowrap;font-size:12px;font-weight:800;letter-spacing:.08em;padding:6px 10px;border-radius:99px;border:1px solid var(--line);background:transparent;color:var(--mut);cursor:pointer}
+  .ib.on{border-color:var(--org);color:var(--org)}
+  /* Datenschutz-Hinweis auf der Karte */
+  #mapWrap{flex:1;min-height:260px;position:relative;display:flex}
+  #priv{display:none;position:absolute;inset:0;z-index:500;background:rgba(14,14,15,.82);color:var(--txt);
+    align-items:center;justify-content:center;text-align:center;padding:24px;font-size:15px;line-height:1.5}
+  #priv b{color:var(--org)}
+  /* Große Ansicht */
+  #big{display:none;position:fixed;inset:0;z-index:2000;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));gap:2vh}
+  #big.show{display:flex}
+  #bSt{font-size:clamp(28px,7vw,72px);font-weight:800;line-height:1.1}
+  #bCdL{font-size:clamp(14px,2.6vw,24px);color:var(--mut);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  #bCd{font-size:clamp(60px,19vw,260px);font-weight:800;line-height:1;color:var(--org)}
+  #bCd.pause{color:var(--blue)} #bCd.fin{color:var(--green)}
+  .brow{display:flex;gap:4vw;flex-wrap:wrap;justify-content:center}
+  .bt .lbl{font-size:clamp(12px,2vw,18px)}
+  .bt .v{font-size:clamp(34px,8vw,90px);font-weight:800}
+  #bClose{position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px}
+  #bSound{position:absolute;top:calc(14px + env(safe-area-inset-top));left:16px}
+  #conf{position:fixed;inset:0;pointer-events:none;z-index:3000}
+  #inst{display:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.45;color:var(--mut)}
+  #inst b{color:var(--txt)}
+
+  @media (max-width:520px){ .brand .bt-txt{display:none} .ib,.pill{font-size:11px;padding:6px 9px} }
   @media (min-width:900px){
     main{flex-direction:row}
     .panel{width:400px;overflow:auto;border-left:1px solid var(--line);align-content:start}
@@ -85,11 +127,15 @@
 
 <div id="app">
   <header>
-    <div class="brand"><svg width="34" height="17"><use href="#inf"/></svg>YARDBELL</div>
-    <span id="pill" class="pill">VERBINDE …</span>
+    <div class="brand"><svg width="34" height="17"><use href="#inf"/></svg><span class="bt-txt">YARDBELL</span></div>
+    <div class="hbtn">
+      <button class="ib" id="sndBtn" title="Glockenton bei jeder neuen Runde">TON AUS</button>
+      <button class="ib" id="bigBtn" title="Große Ansicht">GROSS</button>
+      <span id="pill" class="pill">VERBINDE …</span>
+    </div>
   </header>
   <main>
-    <div id="map"></div>
+    <div id="mapWrap"><div id="map" style="flex:1"></div><div id="priv"><div><b>Standort verborgen</b><br>Die Karte zeigt nur Positionen an der Rennstrecke in Warendorf.</div></div></div>
     <div class="panel">
       <div id="warn"></div>
       <div class="hero">
@@ -111,10 +157,24 @@
         <div class="tile"><div class="lbl">Gesamtzeit</div><div class="v num" id="tot">–</div></div>
       </div>
       <details id="lapsBox"><summary>RUNDENZEITEN</summary><table id="laps"></table></details>
+      <div id="inst"></div>
       <div class="foot"><span id="upd">Warte auf Daten …</span><a href="#" id="change">Code ändern</a></div>
     </div>
   </main>
 </div>
+
+<div id="big">
+  <button class="ib" id="bSound">TON AUS</button>
+  <button class="ib" id="bClose">SCHLIESSEN</button>
+  <div id="bSt">Gleich geht's los</div>
+  <div id="bCdL">Nächste Glocke in</div>
+  <div id="bCd" class="num">--:--</div>
+  <div class="brow">
+    <div class="bt"><div class="lbl">Runde</div><div class="v num" id="bLap">–</div></div>
+    <div class="bt"><div class="lbl">Kilometer</div><div class="v num" id="bKm">–</div></div>
+  </div>
+</div>
+<canvas id="conf"></canvas>
 
 <script>
 (() => {
@@ -123,19 +183,28 @@
   const $ = id => document.getElementById(id);
 
   // ---------- Code aus Link (#ABC123 oder ?c=ABC123) ----------
+  const store = { get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+                  set(k,v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k,v); } catch(e){} } };
+  const QS = new URLSearchParams(location.search);
   function readCode(){
-    const q = new URLSearchParams(location.search).get("c");
+    const q = QS.get("c");
     const h = location.hash.replace("#","");
-    const c = (q || h || "").toUpperCase().replace(/[^A-Z0-9]/g,"");
-    return c.length === 6 ? c : null;
+    let c = (q || h || "").toUpperCase().replace(/[^A-Z0-9]/g,"");
+    if (c.length !== 6) c = (store.get("yb_code") || "");      // vom Home-Bildschirm ohne Link
+    if (c.length !== 6) return null;
+    store.set("yb_code", c);
+    return c;
   }
+  if (QS.get("n")) store.set("yb_name", QS.get("n").slice(0,20));
+  const NAME = store.get("yb_name") || "Sascha";
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
   $("go").onclick = () => {
     const c = $("codeIn").value.toUpperCase().replace(/[^A-Z0-9]/g,"");
     if (c.length !== 6) { $("codeIn").style.borderColor = "var(--red)"; return; }
     location.hash = c; location.reload();
   };
   $("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") $("go").click(); });
-  $("change").onclick = e => { e.preventDefault(); location.hash = ""; location.search = ""; };
+  $("change").onclick = e => { e.preventDefault(); store.set("yb_code", null); location.hash = ""; location.search = ""; };
 
   const code = readCode();
   if (!code) return;
@@ -145,7 +214,7 @@
   const topic = PREFIX + code;
 
   // ---------- Karte (OpenStreetMap / CARTO, Google-Maps-Optik) ----------
-  const map = L.map("map", { zoomControl: true, attributionControl: true }).setView([51.45, 7.01], 13);
+  const map = L.map("map", { zoomControl: true, attributionControl: true }).setView([51.9375, 7.9985], 14);
   const street = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
     maxZoom: 19, attribution: "Karte &copy; Esri, HERE, Garmin, &copy; OpenStreetMap"
   }).addTo(map);
@@ -167,6 +236,7 @@
   let ended = false;
   let lastRecv = 0;
   let lastId = "all";
+  let booted = false;      // erst nach dem Verlauf feiern
   let R = null;            // letzte Bereit-Meldung der Uhr
   const GPSQ = ["GPS sucht …", "GPS sucht …", "GPS schwach", "GPS ok", "GPS gut"];
 
@@ -209,14 +279,29 @@
         if (startMk) { map.removeLayer(startMk); startMk = null; }
       }
       ended = false;
+      if (booted && S && !ended) {
+        if (d.lap > S.lap || (S.st === "wait" && d.st === "run")) celebrate(d.lap);
+      } else if (booted && !S && d.st === "run") celebrate(d.lap);
       S = d;
       addPts(d.pts);
     }
     render();
   }
 
-  function addPts(pts){
-    if (!pts || !pts.length) return;
+  // ---------- Datenschutz-Zone: nur Punkte rund um die Strecke Warendorf ----------
+  const ZONE = { lat: 51.939985, lon: 7.992005, r: 4000 };   // Start/Ziel, 4 km Umkreis
+  function inZone(p){
+    const dy = (p[0] - ZONE.lat) * 111320, dx = (p[1] - ZONE.lon) * 111320 * Math.cos(ZONE.lat * Math.PI / 180);
+    return Math.hypot(dx, dy) <= ZONE.r;
+  }
+  let hidden = false;
+  function addPts(raw){
+    if (!raw || !raw.length) return;
+    const pts = raw.filter(inZone);
+    hidden = pts.length === 0;
+    $("priv").style.display = hidden ? "flex" : "none";
+    if (me) me.setOpacity(hidden ? 0 : 1);
+    if (!pts.length) return;
     pts.forEach(p => track.addLatLng(p));
     const all = track.getLatLngs();
     const last = all[all.length - 1];
@@ -248,9 +333,10 @@
       $("cd").className = "num"; $("cd").textContent = "--:--";
       $("upd").textContent = "Uhr gemeldet vor " + fmt(lag);
       $("warn").style.display = "none";
+      bigSet(gone ? "Uhr noch nicht verbunden" : "Gleich geht's los", "Start", "--:--", "", "–", "–");
       return;
     }
-    if (!S) { pill.textContent = "WARTET AUF START"; return; }
+    if (!S) { pill.textContent = "WARTET AUF START"; bigSet("Gleich geht's los", "Start", "--:--", "", "–", "–"); return; }
 
     const lag = now - S.t;                    // Sekunden seit Datensatz
     let st = ended ? "end" : S.st;
@@ -296,7 +382,77 @@
       w.textContent = "Seit " + fmt(lag) + " keine neuen Daten. Wahrscheinlich hat das Handy des Läufers gerade kein Netz – die Uhr speichert weiter und schickt alles nach, sobald wieder Verbindung da ist.";
     } else w.style.display = "none";
     $("upd").textContent = lastRecv ? "Aktualisiert vor " + fmt(now - lastRecv) : "Warte auf Daten …";
+    const bTxt = st === "run" ? NAME + " läuft gerade" : st === "pause" ? NAME + " macht Pause"
+               : st === "wait" ? "Gleich geht's los" : st === "fin" ? "Geschafft!" : "Lauf beendet";
+    bigSet(bTxt, cdLbl, $("cd").textContent, cls, String(S.lap), km(S.totM));
   }
+  function bigSet(t, l, c, cls, lap, k){
+    $("bSt").textContent = t; $("bCdL").textContent = l; $("bCd").textContent = c;
+    $("bCd").className = "num " + (cls || ""); $("bLap").textContent = lap; $("bKm").textContent = k;
+  }
+
+  // ---------- Große Ansicht ----------
+  function setBig(on){ $("big").classList.toggle("show", on); store.set("yb_big", on ? "1" : null);
+    if (on && document.documentElement.requestFullscreen && QS.get("fs") !== "0") document.documentElement.requestFullscreen().catch(()=>{}); }
+  $("bigBtn").onclick = () => setBig(true);
+  $("bClose").onclick = () => { setBig(false); if (document.fullscreenElement) document.exitFullscreen().catch(()=>{}); };
+  if (QS.get("big") === "1" || store.get("yb_big") === "1") $("big").classList.add("show");
+
+  // ---------- Glockenton ----------
+  let AC = null, sound = false;
+  function sndUI(){ ["sndBtn","bSound"].forEach(id => { $(id).textContent = sound ? "TON AN" : "TON AUS"; $(id).classList.toggle("on", sound); }); }
+  function toggleSound(){
+    sound = !sound;
+    if (sound) { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); AC.resume(); bell(1); } catch(e){ sound = false; } }
+    sndUI();
+  }
+  $("sndBtn").onclick = toggleSound; $("bSound").onclick = toggleSound;
+  function bell(n){
+    if (!sound || !AC) return;
+    for (let i = 0; i < n; i++) {
+      const t0 = AC.currentTime + i * 0.55;
+      [[880,1],[1320,.5],[1760,.25]].forEach(([f,a]) => {
+        const o = AC.createOscillator(), g = AC.createGain();
+        o.type = "sine"; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.35 * a, t0 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
+        o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + 1.7);
+      });
+    }
+  }
+
+  // ---------- Konfetti ----------
+  const cv = $("conf"), cx = cv.getContext("2d");
+  let parts = [], anim = 0;
+  function confetti(){
+    cv.width = innerWidth; cv.height = innerHeight;
+    const cols = ["#e0660f","#f2f2f2","#8cb8e8","#70d49a","#ffd166"];
+    for (let i = 0; i < 160; i++) parts.push({ x: Math.random()*cv.width, y: -20 - Math.random()*cv.height*0.4,
+      vx: (Math.random()-.5)*4, vy: 2 + Math.random()*4, r: 4 + Math.random()*5, a: Math.random()*6, c: cols[i % cols.length] });
+    if (!anim) anim = requestAnimationFrame(step);
+  }
+  function step(){
+    cx.clearRect(0,0,cv.width,cv.height);
+    parts.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.a += 0.1;
+      cx.save(); cx.translate(p.x,p.y); cx.rotate(p.a); cx.fillStyle = p.c; cx.fillRect(-p.r/2,-p.r/4,p.r,p.r/2); cx.restore(); });
+    parts = parts.filter(p => p.y < cv.height + 20);
+    anim = parts.length ? requestAnimationFrame(step) : 0;
+    if (!anim) cx.clearRect(0,0,cv.width,cv.height);
+  }
+  function celebrate(lap){ bell(lap > 1 ? 2 : 3); confetti(); }
+
+  // ---------- Hinweis „Zum Home-Bildschirm“ ----------
+  (function(){
+    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+    if (standalone || store.get("yb_inst") === "x") return;
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const el = $("inst");
+    el.innerHTML = (ios ? "<b>Als App speichern:</b> unten auf Teilen tippen → „Zum Home-Bildschirm“."
+                        : "<b>Als App speichern:</b> im Browser-Menü ⋮ → „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.")
+                 + ' <a href="#" id="instX" style="color:var(--mut)">ausblenden</a>';
+    el.style.display = "block";
+    $("instX").onclick = e => { e.preventDefault(); store.set("yb_inst","x"); el.style.display = "none"; };
+  })();
   setInterval(render, 1000);
 
   // ---------- Daten holen: erst Verlauf, dann live ----------
@@ -310,6 +466,7 @@
         if (m.event === "message") { handle(m); lastRecv = m.time; }
       });
     } catch (e) { console.log(e); }
+    booted = true;
     render();
     connect();
   }
