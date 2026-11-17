@@ -58,7 +58,7 @@
   .panel{padding:14px 16px calc(14px + env(safe-area-inset-bottom));display:grid;gap:12px}
   .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
   .lbl{font-size:11px;letter-spacing:.14em;color:var(--mut);font-weight:700;text-transform:uppercase}
-  #cd{font-size:56px;line-height:1;font-weight:700;color:var(--org)}
+  #cd{white-space:nowrap;font-size:56px;line-height:1;font-weight:700;color:var(--org)}
   #cd.pause{color:var(--blue)} #cd.fin{color:var(--green)}
   .right{text-align:right}
   #el{font-size:30px;font-weight:700}
@@ -236,7 +236,19 @@
   let ended = false;
   let lastRecv = 0;
   let lastId = "all";
-  let booted = false;      // erst nach dem Verlauf feiern
+  let booted = false;
+  // ---------- Renn-Start (Countdown bis zum Start) ----------
+  const RACE_T = Date.UTC(2026, 10, 22, 7, 0, 0) / 1000;   // 22.11.2026 08:00 Uhr (MEZ)
+  function fmtStart(sec){
+    sec = Math.max(0, Math.round(sec));
+    const d = Math.floor(sec / 86400), r = sec % 86400;
+    const t = Math.floor(r/3600) + ":" + two(Math.floor(r%3600/60)) + ":" + two(r%60);
+    return d > 0 ? d + (d === 1 ? " Tag " : " Tage ") + t : fmt(sec);
+  }
+  function preStart(now){       // Countdown zeigen? → [Beschriftung, Wert] oder null
+    if (now >= RACE_T) return null;
+    return ["Start Backyard Warendorf in", fmtStart(RACE_T - now)];
+  }      // erst nach dem Verlauf feiern
   let R = null;            // letzte Bereit-Meldung der Uhr
   const GPSQ = ["GPS sucht …", "GPS sucht …", "GPS schwach", "GPS ok", "GPS gut"];
 
@@ -330,13 +342,23 @@
       pill.textContent = gone ? "UHR NICHT VERBUNDEN" : (R.armed ? "WARTET AUF START · " : "UHR BEREIT · ") + (R.gps >= 3 ? "GPS ✓" : "GPS SUCHT");
       pill.className = "pill " + (gone ? "" : R.armed ? "pause" : "");
       $("cdLbl").textContent = gone ? "Uhr meldet sich nicht" : GPSQ[R.gps] + (R.batt != null ? " · Akku " + R.batt + " %" : "");
-      $("cd").className = "num"; $("cd").textContent = "--:--";
+      const ps = preStart(now);
+      $("cd").className = "num"; $("cd").textContent = ps ? ps[1] : "--:--";
+      if (ps) $("cdLbl").textContent = ps[0] + " · " + $("cdLbl").textContent;
       $("upd").textContent = "Uhr gemeldet vor " + fmt(lag);
       $("warn").style.display = "none";
-      bigSet(gone ? "Uhr noch nicht verbunden" : "Gleich geht's los", "Start", "--:--", "", "–", "–");
+      bigSet(gone ? (ps ? "Bald geht's los" : "Uhr noch nicht verbunden") : "Gleich geht's los", ps ? ps[0] : "Start", ps ? ps[1] : "--:--", "", "–", "–");
       return;
     }
-    if (!S) { pill.textContent = "WARTET AUF START"; bigSet("Gleich geht's los", "Start", "--:--", "", "–", "–"); return; }
+    const ps0 = preStart(now);
+    if (!S || (ps0 && (ended || S.st === "fin") && S.startT < RACE_T - 6*3600)) {   // noch kein Rennen (alte Trainings ignorieren)
+      pill.textContent = "WARTET AUF START"; pill.className = "pill";
+      $("cdLbl").textContent = ps0 ? ps0[0] : "Start erfolgt – warte auf Daten der Uhr";
+      $("cd").className = "num"; $("cd").textContent = ps0 ? ps0[1] : "--:--";
+      $("upd").textContent = lastRecv ? "Aktualisiert vor " + fmt(now - lastRecv) : "Warte auf Daten …";
+      bigSet(ps0 ? "Bald geht's los" : "Gleich geht's los", ps0 ? ps0[0] : "Start", ps0 ? ps0[1] : "--:--", "", "–", "–");
+      return;
+    }
 
     const lag = now - S.t;                    // Sekunden seit Datensatz
     let st = ended ? "end" : S.st;
@@ -389,6 +411,9 @@
   function bigSet(t, l, c, cls, lap, k){
     $("bSt").textContent = t; $("bCdL").textContent = l; $("bCd").textContent = c;
     $("bCd").className = "num " + (cls || ""); $("bLap").textContent = lap; $("bKm").textContent = k;
+    const n = String(c).length;
+    $("bCd").style.fontSize = n > 8 ? "clamp(34px," + Math.floor(150 / n) + "vw,170px)" : "";
+    $("cd").style.fontSize = String($("cd").textContent).length > 8 ? "30px" : "";
   }
 
   // ---------- Große Ansicht ----------
