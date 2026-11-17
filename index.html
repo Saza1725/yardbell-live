@@ -167,11 +167,14 @@
   let ended = false;
   let lastRecv = 0;
   let lastId = "all";
+  let R = null;            // letzte Bereit-Meldung der Uhr
+  const GPSQ = ["GPS sucht …", "GPS sucht …", "GPS schwach", "GPS ok", "GPS gut"];
 
   function parse(msg){
     const p = msg.split("|");
     if (p[0] !== "v1") return null;
     if (p[1] === "end") return { st: "end", t: +p[2], pts: ptsOf(p[3]) };
+    if (p[1] === "rdy") return { st: "rdy", t: +p[2], gps: +p[3] || 0, raceM: +p[4], batt: p[7] === "" || p[7] == null ? null : +p[7], armed: p[8] === "1" };
     return {
       st: p[1], t: +p[2], startT: +p[3], iv: +p[4], lap: +p[5], max: +p[6],
       lapM: +p[7], curM: +p[8], totM: +p[9], el: +p[10], pace: +p[11], race: p[12] === "1",
@@ -193,6 +196,7 @@
 
   function apply(d){
     if (!d) return;
+    if (d.st === "rdy") { if (!R || d.t >= R.t) R = d; if (S && d.t > S.t) ended = true; render(); return; }
     // verspätet erneut zugestellte ältere Datensätze nicht über den neuesten legen
     if (d.st !== "end" && S && d.startT === runStart && d.t < S.t) { addPts(d.pts); return; }
     if (d.st === "end") {
@@ -236,6 +240,16 @@
   function render(){
     const now = Date.now()/1000;
     const pill = $("pill"), cd = $("cd");
+    if (R && (!S || ended || S.st === "fin") && (!S || R.t > S.t)) {
+      const lag = now - R.t, gone = lag > 150;
+      pill.textContent = gone ? "UHR NICHT VERBUNDEN" : (R.armed ? "WARTET AUF START · " : "UHR BEREIT · ") + (R.gps >= 3 ? "GPS ✓" : "GPS SUCHT");
+      pill.className = "pill " + (gone ? "" : R.armed ? "pause" : "");
+      $("cdLbl").textContent = gone ? "Uhr meldet sich nicht" : GPSQ[R.gps] + (R.batt != null ? " · Akku " + R.batt + " %" : "");
+      $("cd").className = "num"; $("cd").textContent = "--:--";
+      $("upd").textContent = "Uhr gemeldet vor " + fmt(lag);
+      $("warn").style.display = "none";
+      return;
+    }
     if (!S) { pill.textContent = "WARTET AUF START"; return; }
 
     const lag = now - S.t;                    // Sekunden seit Datensatz
