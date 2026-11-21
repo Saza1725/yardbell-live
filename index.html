@@ -83,6 +83,12 @@
   .ib.on{border-color:var(--org);color:var(--org)}
   /* Datenschutz-Hinweis auf der Karte */
   #mapWrap{flex:1;min-height:260px;position:relative;display:flex}
+  #pre{display:none;flex:1;min-height:260px;align-items:center;justify-content:center;text-align:center;padding:30px 20px;
+    background:radial-gradient(circle at 50% 40%,rgba(224,102,15,.16),transparent 65%)}
+  #pre .pt{font-size:13px;letter-spacing:.2em;color:var(--mut);font-weight:800;text-transform:uppercase}
+  #pre .pb{font-size:clamp(34px,8vw,64px);font-weight:800;margin:10px 0 6px}
+  #pre .pb b{color:var(--org)}
+  #pre .ps{font-size:16px;color:#cfcfcf;line-height:1.5}
   #priv{display:none;position:absolute;inset:0;z-index:500;background:rgba(14,14,15,.82);color:var(--txt);
     align-items:center;justify-content:center;text-align:center;padding:24px;font-size:15px;line-height:1.5}
   #priv b{color:var(--org)}
@@ -135,7 +141,7 @@
     </div>
   </header>
   <main>
-    <div id="mapWrap"><div id="map" style="flex:1"></div><div id="priv"><div><b>Standort verborgen</b><br>Die Karte zeigt nur Positionen an der Rennstrecke in Warendorf.</div></div></div>
+    <div id="pre"><div><div class="pt">Backyard Ultra Warendorf · So 22.11.2026</div><div class="pb">Start <b>08:00</b> Uhr</div><div class="ps">Die Live-Karte erscheint ab <b>07:45 Uhr</b>.<br>Countdown, Runden und Kilometer starten mit dem Lauf.</div></div></div><div id="mapWrap"><div id="map" style="flex:1"></div><div id="priv"><div><b>Standort verborgen</b><br>Die Karte zeigt nur Positionen an der Rennstrecke in Warendorf.</div></div></div>
     <div class="panel">
       <div id="warn"></div>
       <div class="hero">
@@ -334,7 +340,19 @@
   const km = m => (m/1000).toFixed(2).replace(".",",");
   const pace = s => s > 0 ? Math.floor(s/60) + ":" + two(s%60) + "<small>/km</small>" : "–";
 
+  // Karte erst ab 07:45 (15 min vor dem Start) – davor nur der Hinweis-Text
+  const MAP_T = RACE_T - 15 * 60;
+  let gateOn = null;
+  function mapGate(now){
+    const live = S && (S.st === "run" || S.st === "pause" || S.st === "wait") && S.startT > MAP_T - 6 * 3600;
+    const on = now < MAP_T && !live;
+    if (on === gateOn) return; gateOn = on;
+    $("pre").style.display = on ? "flex" : "none";
+    $("mapWrap").style.display = on ? "none" : "flex";
+    if (!on) setTimeout(() => map.invalidateSize(), 50);
+  }
   function render(){
+    mapGate(Date.now()/1000);
     const now = Date.now()/1000;
     const pill = $("pill"), cd = $("cd");
     if (R && (!S || ended || S.st === "fin") && (!S || R.t > S.t)) {
